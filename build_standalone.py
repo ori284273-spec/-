@@ -10,8 +10,9 @@ def build(destination, package=None):
     html = (static / 'index.html').read_text()
     for name in ['style.css', 'keywords.css']:
         html = html.replace(f'<link rel="stylesheet" href="{name}">', '<style>\n' + (static / name).read_text() + '\n</style>')
-    script = (static / 'keywords.js').read_text().replace('</script', '<\\/script')
-    html = html.replace('<script src="keywords.js"></script>', '<script>\n' + script + '\n</script>')
+    for filename in ['characters.js', 'keywords.js']:
+        script = (static / filename).read_text().replace('</script', '<\\/script')
+        html = html.replace(f'<script src="{filename}"></script>', '<script>\n' + script + '\n</script>')
     target = Path(destination)
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(html, encoding='utf-8')

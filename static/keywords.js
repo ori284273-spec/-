@@ -77,9 +77,22 @@
     ]),
     makeCard('IDENTITY-001','identity','人物身份 · 可选补充','由你对照自己的参考图填写',[],['source_style','source_outfit','source_lighting'])
   ];
-  const initial = {schema:'shancai-keywords/2',cards:seeds,selection:{style:'STYLE-001',shot:'SHOT-001',narrative:'STORY-001',pose:'POSE-001',setting:'SCENE-001',lighting:'LIGHT-001',palette:'COLOR-001',identity:'IDENTITY-001'},characterName:'',identityMode:'external',outfitZh:'日常针织衫',outfitEn:'a casual knitted cardigan',extraZh:'',extraEn:'',negative:'thick uniform outlines; plastic-looking skin; excessive glossy hair highlights; uniform gray desaturation; duplicated limbs; inconsistent facial structure',records:[]};
+  const correctedStyle=makeCard('STYLE-003','style','立绘校正 · 清晰赛璐璐','新人物附件人工观察；替代偏写实的旧拆解',[
+    ['五官语言','清晰图形化眼睛、小鼻嘴，不做写实骨相塑造','clean graphic anime eyes, small simplified nose and mouth; avoid realistic facial anatomy','根据这批立绘可见形态，保留每个人物独立眼型。'],
+    ['线条','纤细清晰的深色轮廓，不用铅笔断线','thin clean dark contours with controlled line-weight variation; no broken pencil sketch lines','立绘外轮廓闭合，脸部与发束结构明确。'],
+    ['底色','稳定固有色与平整色块','stable local colors in clean flat base-color regions','不是整张图盖暖黄或褪色滤镜。'],
+    ['阴影','一至两层简洁赛璐璐阴影，边界明确','one or two simplified cel-shadow steps with mostly crisp edges','阴影颜色与肤色分离，不用厚重渐层塑形。'],
+    ['高光','少量发束片状高光，皮肤不画摄影反光','restrained grouped hair highlights; no photographic skin speculars','脸颊可有小范围红润，不渲染毛孔。'],
+    ['材质与背景','人物优先、材质简化、背景保持绘画表达','simplified illustrated materials and a subordinate painted background; no photorealistic textures, paper grain or cinematic blur','原图白底不等于多场景都白底，场景应另外指定。']
+  ],['photographic_skin','paper_grain','global_sepia_filter','realistic_materials','source_costume','source_pose']);
+  correctedStyle.keywords.forEach(k=>k.confidence='visual_estimate');
+  seeds.push(correctedStyle);
+  const initial = {schema:'shancai-keywords/2',cards:seeds,selection:{style:'STYLE-003',shot:'SHOT-002',narrative:'STORY-001',pose:'POSE-001',setting:'SCENE-001',lighting:'',palette:'',identity:'IDENTITY-001'},characterName:'',identityMode:'external',outfitZh:'日常针织衫',outfitEn:'a casual knitted cardigan',extraZh:'',extraEn:'',negative:'photorealistic face; skin pores; paper grain; heavy atmospheric haze; global sepia filter; elongated legs; compressed torso; chibi proportions; duplicated limbs; inconsistent facial structure',records:[]};
   let state = clone(initial), page = 'studio', category = 'style', search = '', memoryOnly = false;
   try { const raw = localStorage.getItem(STORE); if(raw) state = validate(JSON.parse(raw)); } catch { memoryOnly = true; }
+  if(!state.cards.some(c=>c.id==='STYLE-003'))state.cards.push(clone(correctedStyle));
+  if(!state.characters){state.selection.style='STYLE-003';state.selection.shot='SHOT-002';state.selection.lighting='';state.selection.palette='';}
+  window.CharacterStudio.init(state);
   function validate(s) {
     if(s?.schema!=='shancai-keywords/2'||!Array.isArray(s.cards)||!s.cards.length||!s.selection||!Array.isArray(s.records)) throw Error('不是本版本的工作空间备份');
     const ids=new Set();
@@ -89,6 +102,13 @@
       for(const k of c.keywords) if(!k.id||typeof k.description_zh!=='string'||typeof k.prompt_en!=='string'||!evidence[k.confidence]||!Array.isArray(k.conflicts)) throw Error('关键词结构无效');
     }
     if(!['external','keywords'].includes(s.identityMode)) throw Error('人物输入模式无效');
+    if(s.characters){
+      if(!Array.isArray(s.characters)||s.characters.length>500)throw Error('人物库格式无效');
+      const characterIds=new Set();
+      for(const c of s.characters){if(!c.id||characterIds.has(c.id)||!['name','source','faceEn','hairEn','faceZh','hairZh','front','quarter','profile','body','note','avoid'].every(k=>typeof c[k]==='string'))throw Error('人物身份字段无效');characterIds.add(c.id);}
+      if(s.characterId&&!characterIds.has(s.characterId))throw Error('人物引用无效');
+      if(!['front','quarter','profile'].includes(s.characterView)||!['station','classroom','street','seaside'].includes(s.characterScene)||!['full','medium'].includes(s.characterScale))throw Error('人物视角或比例模式无效');
+    }
     for(const k of ['characterName','outfitZh','outfitEn','extraZh','extraEn','negative']) if(typeof s[k]!=='string') throw Error('文本字段格式无效');
     for(const [cat,cid] of Object.entries(s.selection)) if(!categories[cat]||(cid&&!s.cards.some(c=>c.id===cid&&c.category===cat))) throw Error('所选卡片引用无效');
     for(const r of s.records) if(typeof r.prompt!=='string'||!Array.isArray(r.sources)||!Array.isArray(r.generation_images)) throw Error('历史记录结构无效');
@@ -110,8 +130,10 @@
   function compile() {
     const sources=[], blocks=[], errors=[];
     const add=(label,txt,source)=>{if(txt.trim()){blocks.push(label+'\n'+txt.trim());if(source)sources.push(source);}};
+    const character=window.CharacterStudio.compile(state);
+    if(character)add('CHARACTER IDENTITY AND PROPORTIONS',character.text,character.source);
     if(state.identityMode==='external') add('CHARACTER REFERENCE',`Use the character reference images supplied separately by the user as the identity source. Preserve the facial outline, eye shape and spacing, feature placement, hair divisions and recognizable marks across style, scene and outfit changes. Inherit identity only; do not copy the reference outfit, background, pose or lighting. ${state.characterName?'Character label: '+state.characterName+'.':''}`,{id:'USER-REFERENCE-INSTRUCTION',source:'用户自行提供参考图的输入策略',version:1});
-    if(state.identityMode==='keywords'&&!active(chosen('identity')).length) errors.push('已选择“身份关键词”模式，但人物身份卡为空。请补充特征，或切回“自行提供人物参考图”。');
+    if(state.identityMode==='keywords'&&!character&&!active(chosen('identity')).length) errors.push('已选择“身份关键词”模式，但人物身份卡为空。请补充特征，或切回“自行提供人物参考图”。');
     for(const cat of ['identity','narrative','pose','shot','setting','lighting','palette','style']) {
       const c=chosen(cat), keys=active(c);
       if(!keys.length) continue;
@@ -121,6 +143,7 @@
     const all=Object.keys(categories).flatMap(cat=>active(chosen(cat)));
     for(const k of all) if(k.conflicts.some(cid=>all.some(x=>x.id===cid))) errors.push('词条冲突：'+k.id);
     const shot=active(chosen('shot')).map(k=>k.prompt_en).join(' ');
+    if(character&&state.characterScale==='full'&&/medium.close|close.up/i.test(shot))errors.push('人物选择了全身比例，但构图卡为近景，请切换全身构图卡或改人物范围。');
     if(/full.body/i.test(shot)&&/medium.close|close.up|80 percent/i.test(shot))errors.push('构图同时包含全身与近景，请禁用冲突词条。');
     const pose=active(chosen('pose')).map(k=>k.prompt_en).join(' ');
     if(/both hands.*rest|both arms.*down/i.test(pose)&&/offer.*umbrella|extend.*hand/i.test(pose))errors.push('双手垂下与伸手递物同时启用，请调整动作。');
@@ -132,16 +155,33 @@
     const exclusions=[...new Set(Object.keys(categories).flatMap(cat=>chosen(cat)?.exclusions||[]))];
     add('SCOPE AND IDENTITY PROTECTION','Apply rendering keywords to drawing technique only. Keep character identity, composition, clothing, scene objects, lighting and palette in their respective scopes. Preserve coherent anatomy, perspective and physical contact.');
     if(state.negative.trim())add('AVOID',state.negative,{id:'USER-NEGATIVE',prompt_en:state.negative,source:'用户可编辑负面约束',version:1});
-    return {prompt:blocks.join('\n\n'),sources,errors:[...new Set(errors)],exclusions,generation_images:[],reference_policy:state.identityMode==='external'?'user_supplies_separately':'identity_keywords_only'};
+    if(character&&state.characterScene!=='station'&&state.selection.setting==='SCENE-001')errors.push('人物场景已切换，但仍选用了车站场景卡；请在场景维度取消旧卡或换成对应场景。');
+    return {prompt:blocks.join('\n\n'),sources,errors:[...new Set(errors)],exclusions,generation_images:[],reference_policy:state.identityMode==='external'?'user_supplies_separately':'identity_keywords_only',character:character?.source||null};
   }
   function nav(k,icon,name){return `<button class="nav ${page===k?'active':''}" data-page="${k}"><i>${icon}</i>${name}</button>`;}
   function heading(en,title,sub,buttons=''){return `<div class="heading"><div><div class="eyebrow">${en}</div><h1>${title}</h1><p class="sub">${sub}</p></div><div class="top-actions">${buttons}</div></div>`;}
-  function render(){
+  function renderLegacy(){
     const names={studio:'关键词工作台',library:'拆解资料库',records:'导出记录',help:'使用与备份'};
     $('#app').innerHTML=`<div class="shell"><aside class="side"><div class="logo"><b>✳</b> 闪彩 <em>Atelier</em><small>WORDS INTO WORLDS</small></div><nav><div class="navtitle">关键词创作空间</div>${nav('studio','◈',names.studio)}${nav('library','▤',names.library)}${nav('records','◷',names.records)}<div class="navtitle">工作室</div>${nav('help','☷',names.help)}</nav><div class="sidebottom"><span class="online"></span>完整离线版 · V 2.0<br><span id="saveStatus">${memoryOnly?'临时使用 · 请导出备份':'已保存在此浏览器'}</span><div class="tagline" style="margin-top:16px">YOUR REFERENCES. YOUR STORY.</div></div></aside><main class="main"><header class="topbar"><span>闪彩工坊 &nbsp; / &nbsp; <strong>${names[page]}</strong></span><span>拆解画法 · 自由组合 · 导出使用</span></header><div class="content">${page==='studio'?studio():page==='library'?library():page==='records'?records():help()}<footer class="footer"><span>闪彩 Atelier · 关键词负责画法，参考图由你提供。</span><span>OFFLINE EDITION / 2.0</span></footer></div></main></div>`;
     bind();
   }
   function categoryBar(){return `<div class="categorybar">${Object.entries(categories).map(([k,v])=>`<button data-category="${k}" class="${category===k?'active':''}">${v} <span>${active(chosen(k)).length}</span></button>`).join('')}</div>`;}
+  function render(){
+    const context={esc,save,render,toast,download,openModal};
+    window.CharacterStudio.init(state);window.CharacterStudio.setContext(context);
+    renderLegacy();
+    const menu=$('.side nav');menu.insertAdjacentHTML('afterbegin',nav('characters','♧','人物库 · '+state.characters.length));
+    if(page==='characters'){
+      $('.content').innerHTML=window.CharacterStudio.render(state)+'<footer class="footer">人物来源为用户附件的可见特征记录；推演不等于确认。</footer>';
+      $('.topbar strong').textContent='人物身份库';
+    }else if(page==='studio'){
+      $('.hero').insertAdjacentHTML('beforebegin',window.CharacterStudio.controls(state));
+      $('.heading .sub').textContent='先选人物与比例，再组合画法、场景和关键词。';
+      $('.hero h2').innerHTML='保留她的五官，<br>再改变场景与服装。';
+    }
+    $('.sidebottom .online').nextSibling.textContent='人物与关键词 · V3 ';
+    bind();window.CharacterStudio.bind(state,context);
+  }
   function cardChoices(){return state.cards.filter(c=>c.category===category).map(c=>`<option value="${c.id}" ${state.selection[category]===c.id?'selected':''}>${esc(c.name)}</option>`).join('');}
   function keywordsPanel(){const c=chosen(category);return `<div class="panel"><div class="panelhead"><h2>${categories[category]}拆解</h2><button class="lightbtn" id="editCurrent">编辑卡片 ↗</button></div><div class="toolbar"><select id="selectCard" style="flex:1"><option value="">不使用此维度</option>${cardChoices()}</select><button class="secondary" id="newCard">＋ 新卡片</button></div>${c?`<div class="cardheader"><div class="eyebrow">${esc(c.id)} / VERSION ${c.version}</div><h2>${esc(c.name)}</h2><p>${esc(c.source)}</p><p class="title-source">逐项选择，只导出勾选的内容。观察依据与用途随 JSON 一并保留。</p></div>${c.keywords.length?c.keywords.map((k,i)=>`<div class="kwrow ${k.enabled?'':'off'}"><label><input type="checkbox" data-keyword="${i}" ${k.enabled?'checked':''}><div class="kwtext"><strong>${esc(k.part)} · ${esc(k.description_zh)}</strong><div class="english">${esc(k.prompt_en)}</div><div class="basis">依据 / ${esc(k.basis||'待补充观察依据')}</div></div></label><div class="meta"><span>${evidence[k.confidence]}</span><span>· ${k.confirmed?'人工已确认':'待人工确认'}</span><span>· ${esc(k.scope)}</span></div></div>`).join(''):`<div class="empty">身份特征是可选补充。<br>你可以在生图时自行提供人物图，无需先上传或填写人物母版。<br><button class="lightbtn" id="editEmpty">＋ 记录身份关键词</button></div>`}<div class="info">不继承：${c.exclusions.length?esc(c.exclusions.join(' / ')):'未设置排除项'}<br>保存新版本时会保留上一个版本及其词条。</div>`:'<div class="empty">此维度暂不导出。可在上方选择卡片或新建卡片。</div>'}</div>`;}
   function studio(){const result=compile();return `${heading('KEYWORD WORKSPACE','把画风，拆成可用的语言。','只需挑选和调整关键词；人物与其他参考图由你在生图时自行提供。','<button class="secondary" id="backup">↓ 备份工作空间</button>')}<div class="hero"><div><div class="eyebrow">A SMALL DETAIL. A DIFFERENT WORLD.</div><h2>保留细腻的笔触，<br>给新的故事留出空间。</h2><p>不把一张图的全部内容捆在一起。<br>画法、镜头、光照与色彩，都可以独立选择。</p><div class="statline"><span>${state.cards.length} 张拆解卡</span><span>${Object.keys(categories).length} 个独立维度</span><span>${result.sources.filter(s=>s.card_id).length} 个已选词条</span></div></div><div class="hero-mark">Aa ✧</div></div><div class="workflow"><span><b>01</b>选择拆解卡</span><span><b>02</b>勾选与精调</span><span><b>03</b>导出关键词</span><span><b>04</b>自行附图生图</span></div>${categoryBar()}<div class="keyword-layout"><section>${keywordsPanel()}<div class="panel"><div class="panelhead"><h2>人物与临时造型</h2><small>不要求上传参考图</small></div><div class="charfields"><label class="field"><span>人物输入方式</span><select data-field="identityMode"><option value="external" ${state.identityMode==='external'?'selected':''}>我会在生图时提供人物参考图</option><option value="keywords" ${state.identityMode==='keywords'?'selected':''}>只使用人物身份关键词</option></select></label><label class="field"><span>人物名称（可选）</span><input data-field="characterName" value="${esc(state.characterName)}" placeholder="角色名或自定义称呼"></label><label class="field"><span>服装中文备注</span><input data-field="outfitZh" value="${esc(state.outfitZh)}"></label><label class="field"><span>服装英文关键词</span><input data-field="outfitEn" value="${esc(state.outfitEn)}"></label></div><p class="formhelp">外部人物参考模式默认导出“只继承人物身份”的说明。参考图不会存入这个网页，也不会随文本导出。</p></div><div class="panel"><h3>补充要求与负面约束</h3><label class="field"><span>补充要求 · 中文备注</span><textarea data-field="extraZh" rows="2">${esc(state.extraZh)}</textarea></label><label class="field"><span>对应英文要求（导出内容）</span><textarea data-field="extraEn" rows="2">${esc(state.extraEn)}</textarea></label><label class="field"><span>负面约束 · 英文，可编辑</span><textarea data-field="negative" rows="3">${esc(state.negative)}</textarea></label></div></section><aside class="panel output-panel"><div class="panelhead"><h2>本次关键词组合</h2><span class="badge">实时预览</span></div><div class="selected-tags">${Object.entries(categories).filter(([cat])=>active(chosen(cat)).length).map(([cat,label])=>`<span>${label} · ${active(chosen(cat)).length}</span>`).join('')}</div><div style="margin-top:16px" id="compileStatus">${statusHtml(result)}</div><pre class="code" id="livePrompt">${esc(result.prompt)}</pre><button class="primary wide" id="exportTxt">↓ 导出完整提示词 TXT</button><div class="exporttypes"><button id="copy">复制关键词</button><button id="exportJson">结构化 JSON</button><button id="exportMd">中文拆解 MD</button></div><button class="lightbtn wide" id="viewSources">查看全部来源 →</button><p class="mini-note">使用时：复制提示词 → 打开 ChatGPT Images → 自行附上人物参考图 → 生成与核对。文字约束不能保证脸部完全一致。</p></aside></div>`;}
