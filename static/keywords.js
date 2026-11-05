@@ -88,7 +88,7 @@
   correctedStyle.keywords.forEach(k=>k.confidence='visual_estimate');
   seeds.push(correctedStyle);
   const initial = {schema:'shancai-keywords/2',cards:seeds,selection:{style:'STYLE-003',shot:'SHOT-002',narrative:'STORY-001',pose:'POSE-001',setting:'SCENE-001',lighting:'',palette:'',identity:'IDENTITY-001'},characterName:'',identityMode:'external',outfitZh:'日常针织衫',outfitEn:'a casual knitted cardigan',extraZh:'',extraEn:'',negative:'photorealistic face; skin pores; paper grain; heavy atmospheric haze; global sepia filter; elongated legs; compressed torso; chibi proportions; duplicated limbs; inconsistent facial structure',records:[]};
-  let state = clone(initial), page = 'studio', category = 'style', search = '', memoryOnly = false;
+  let state = clone(initial), page = 'characters', category = 'style', search = '', memoryOnly = false;
   try { const raw = localStorage.getItem(STORE); if(raw) state = validate(JSON.parse(raw)); } catch { memoryOnly = true; }
   if(!state.cards.some(c=>c.id==='STYLE-003'))state.cards.push(clone(correctedStyle));
   if(!state.characters){state.selection.style='STYLE-003';state.selection.shot='SHOT-002';state.selection.lighting='';state.selection.palette='';}
@@ -180,7 +180,8 @@
       $('.heading .sub').textContent='先选人物与比例，再组合画法、场景和关键词。';
       $('.hero h2').innerHTML='保留她的五官，<br>再改变场景与服装。';
     }
-    $('.sidebottom .online').nextSibling.textContent='具名人物参考 · V4 ';
+    $('.sidebottom .online').nextSibling.textContent='具名人物参考 · V4.1 ';
+    $('.topbar').insertAdjacentHTML('afterend','<div class="release-bar" role="status"><strong>V4.1 人物图片版</strong><span>28 位具名人物 · 84 张内置参考图</span><small>本地文件不会自动更新；请认准此版本标识。</small></div>');
     if(window.CharacterReferences){document.querySelectorAll('.formhelp').forEach(el=>{if(el.textContent.includes('原始附件需'))el.textContent='人物姓名与原图已内置。原图是身份参考；导出提示词后请另行附上对应图片，网页尚未连接生图服务。';});}
     bind();window.CharacterStudio.bind(state,context);
   }

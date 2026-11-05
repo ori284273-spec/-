@@ -1,11 +1,12 @@
 const {chromium}=require('playwright');
 const fs=require('node:fs');
 const assert=require('node:assert/strict');
+const artifact=process.argv[2]||'dist/闪彩关键词工坊.html';
 (async()=>{
  const browser=await chromium.launch({executablePath:'/usr/bin/chromium',headless:true,args:['--no-sandbox']});
  try{
   const context=await browser.newContext({offline:true,acceptDownloads:true,viewport:{width:1440,height:1000}});
-  await context.route('http://characters.test/**',r=>r.fulfill({contentType:'text/html',body:fs.readFileSync('dist/闪彩关键词工坊.html','utf8')}));
+  await context.route('http://characters.test/**',r=>r.fulfill({contentType:'text/html',body:fs.readFileSync(artifact,'utf8')}));
   const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto('http://characters.test');await page.waitForSelector('#characterSelect');
   const manifest=await page.evaluate(()=>Object.values(window.CharacterReferences).map(r=>({id:r.id,jp:r.jp,images:r.images.map(i=>({lowResolution:i.lowResolution,data:i.data,sha256:i.sha256}))})));
@@ -14,6 +15,17 @@ const assert=require('node:assert/strict');
   assert.equal(await page.locator('#characterSelect option').count(),29);
   assert((await page.locator('#characterSelect option[value="CHAR-02"]').innerText()).includes('芹泽朝日'));
   assert((await page.locator('#characterSelect option[value="CHAR-27"]').innerText()).includes('浅仓透'));
+  assert((await page.locator('.release-bar').innerText()).includes('V4.1 人物图片版'));
+  assert.equal(await page.locator('[data-character-edit]').count(),28); // opens directly in character library
+  await page.locator('[data-page="studio"]').click();
+  let oldWait=page.waitForEvent('download');await page.locator('#backup').click();let oldDownload=await oldWait;
+  const previous=JSON.parse(fs.readFileSync(await oldDownload.path(),'utf8'));
+  for(const p of previous.characters){p.name=p.descriptor||p.name;delete p.catalogVersion;delete p.jp;delete p.nameZh;}
+  previous.outfitEn='a custom cardigan preserved across upgrade';
+  await page.evaluate(value=>localStorage.setItem('shancai-keywords-v2',JSON.stringify(value)),previous);
+  await page.reload();await page.waitForSelector('#characterSelect');
+  assert((await page.locator('#characterSelect option[value="CHAR-01"]').innerText()).includes('大崎甘奈'));
+  await page.locator('[data-page="studio"]').click();assert.equal(await page.locator('[data-field="outfitEn"]').inputValue(),'a custom cardigan preserved across upgrade');
   assert((await page.locator('#selectCard').inputValue())==='STYLE-003');
   let prompt=await page.locator('#livePrompt').innerText();
   assert(prompt.includes('CHAR-01'));assert(prompt.includes('mostly crisp edges'));assert(!prompt.includes('subtle fine-grain surface texture'));
@@ -48,7 +60,7 @@ const assert=require('node:assert/strict');
   const pack=JSON.parse(fs.readFileSync(await dl.path(),'utf8'));
   assert.equal(pack.character.id,'CHAR-20');assert.equal(pack.character.view,'profile');assert.equal(pack.character.character_snapshot.version,2);assert.equal(pack.character.character_snapshot.jp,'和泉愛依');assert(pack.prompt.includes('Mei Izumi'));assert(pack.character.referenceAssets.length>0);assert.deepEqual(pack.generation_images,[]);
   await page.reload();await page.waitForSelector('#characterSelect');assert.equal(await page.locator('#characterSelect').inputValue(),'CHAR-20');
-  await page.locator('[data-category="shot"]').click();await page.locator('#selectCard').selectOption('SHOT-001');assert((await page.locator('#compileStatus').innerText()).includes('近景'));await page.locator('#characterScale').selectOption('medium');assert(!(await page.locator('#compileStatus').innerText()).includes('近景'));
+  await page.locator('[data-page="studio"]').click();await page.locator('[data-category="shot"]').click();await page.locator('#selectCard').selectOption('SHOT-001');assert((await page.locator('#compileStatus').innerText()).includes('近景'));await page.locator('#characterScale').selectOption('medium');assert(!(await page.locator('#compileStatus').innerText()).includes('近景'));
   // Store an exact synthetic PNG in IndexedDB through the actual original association UI.
   await page.locator('[data-page="characters"]').first().click();
   const chooser=page.waitForEvent('filechooser');await page.locator('[data-character-upload="CHAR-20"]').click();const f=await chooser;

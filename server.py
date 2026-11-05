@@ -80,12 +80,19 @@ def import_archive(raw):
 
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self,*args,**kwargs): super().__init__(*args,directory=str(ROOT / 'static'),**kwargs)
+    def end_headers(self):
+        self.send_header('Cache-Control','no-store, max-age=0')
+        self.send_header('X-Atelier-Version','4.1')
+        super().end_headers()
     def reply(self, data, status=200):
         body=json.dumps(data,ensure_ascii=False).encode()
         self.send_response(status); self.send_header('Content-Type','application/json; charset=utf-8')
-        self.send_header('Cache-Control','no-store'); self.send_header('Content-Length',str(len(body))); self.end_headers(); self.wfile.write(body)
+        self.send_header('Content-Length',str(len(body))); self.end_headers(); self.wfile.write(body)
     def do_GET(self):
         path=unquote(urlsplit(self.path).path)
+        if path=='/api/version':
+            catalog=json.loads((ROOT / 'static' / 'references' / 'catalog.json').read_text())
+            return self.reply({'version':'4.1','characters':len(catalog),'images':sum(len(c['images']) for c in catalog),'entry':'static/index.html'})
         if path=='/api/state': return self.reply(read_state())
         if path.startswith('/media/'):
             name=path.removeprefix('/media/')
@@ -93,6 +100,9 @@ class Handler(SimpleHTTPRequestHandler):
             file=DATA / 'images' / name
             if not file.is_file(): return self.send_error(404)
             body=file.read_bytes(); self.send_response(200); self.send_header('Content-Type','image/jpeg'); self.send_header('Content-Length',str(len(body))); self.end_headers(); self.wfile.write(body); return
+        # Development previews must serve current assets even if a browser sends
+        # a conditional request for a previous build.
+        if 'If-Modified-Since' in self.headers: del self.headers['If-Modified-Since']
         return super().do_GET()
     def do_POST(self):
         if self.headers.get('Sec-Fetch-Site')=='cross-site': return self.reply({'error':'拒绝跨站写入'},403)

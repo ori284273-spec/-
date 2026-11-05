@@ -4,6 +4,7 @@ import argparse
 import zipfile
 
 ROOT = Path(__file__).resolve().parent
+DELIVERY_NAME = '闪彩人物库-V4.1-打开这个文件.html'
 
 def build(destination, package=None):
     static = ROOT / 'static'
@@ -18,7 +19,7 @@ def build(destination, package=None):
     target.write_text(html, encoding='utf-8')
     if package:
         with zipfile.ZipFile(package, 'w', zipfile.ZIP_DEFLATED) as archive:
-            archive.write(target, 'shancai-keywords.html')
+            archive.write(target, DELIVERY_NAME)
             archive.write(ROOT / '使用说明.txt', '使用说明.txt')
     print(target)
 
