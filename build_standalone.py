@@ -4,7 +4,7 @@ import argparse
 import zipfile
 
 ROOT = Path(__file__).resolve().parent
-DELIVERY_NAME = '闪彩人物库-V4.1-打开这个文件.html'
+DELIVERY_NAME = '闪彩人物库-V4.2-用户原图版.html'
 
 def build(destination, package=None):
     static = ROOT / 'static'

@@ -174,14 +174,14 @@
     if(page==='characters'){
       $('.content').innerHTML=window.CharacterStudio.render(state)+'<footer class="footer">人物来源为用户附件的可见特征记录；推演不等于确认。</footer>';
       $('.topbar strong').textContent='人物身份库';
-      if(window.CharacterReferences){$('.heading .eyebrow').textContent='CHARACTER REFERENCE LIBRARY / V4';$('.heading .sub').textContent=state.characters.length+' 位具名人物 · 内置公开原始头像、卡面与现有立绘 · 五官及侧面仍需校准';}
+      if(window.CharacterReferences){$('.heading .eyebrow').textContent='CHARACTER REFERENCE LIBRARY / V4.2';$('.heading .sub').textContent=state.characters.length+' 位具名人物 · 内置你提供的白底人物原图 · 五官及侧面仍需校准';}
     }else if(page==='studio'){
       $('.hero').insertAdjacentHTML('beforebegin',window.CharacterStudio.controls(state));
       $('.heading .sub').textContent='先选人物与比例，再组合画法、场景和关键词。';
       $('.hero h2').innerHTML='保留她的五官，<br>再改变场景与服装。';
     }
-    $('.sidebottom .online').nextSibling.textContent='具名人物参考 · V4.1 ';
-    $('.topbar').insertAdjacentHTML('afterend','<div class="release-bar" role="status"><strong>V4.1 人物图片版</strong><span>28 位具名人物 · 84 张内置参考图</span><small>本地文件不会自动更新；请认准此版本标识。</small></div>');
+    $('.sidebottom .online').nextSibling.textContent='具名人物参考 · V4.2 ';
+    $('.topbar').insertAdjacentHTML('afterend','<div class="release-bar" role="status"><strong>V4.2 用户原图版</strong><span>28 位具名人物 · 76 张你提供的原图</span><small>在线网站会随人物库更新；请认准此版本标识。</small></div>');
     if(window.CharacterReferences){document.querySelectorAll('.formhelp').forEach(el=>{if(el.textContent.includes('原始附件需'))el.textContent='人物姓名与原图已内置。原图是身份参考；导出提示词后请另行附上对应图片，网页尚未连接生图服务。';});}
     bind();window.CharacterStudio.bind(state,context);
   }

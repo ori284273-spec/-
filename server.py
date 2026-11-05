@@ -82,7 +82,7 @@ class Handler(SimpleHTTPRequestHandler):
     def __init__(self,*args,**kwargs): super().__init__(*args,directory=str(ROOT / 'static'),**kwargs)
     def end_headers(self):
         self.send_header('Cache-Control','no-store, max-age=0')
-        self.send_header('X-Atelier-Version','4.1')
+        self.send_header('X-Atelier-Version','4.2')
         super().end_headers()
     def reply(self, data, status=200):
         body=json.dumps(data,ensure_ascii=False).encode()
@@ -92,7 +92,7 @@ class Handler(SimpleHTTPRequestHandler):
         path=unquote(urlsplit(self.path).path)
         if path=='/api/version':
             catalog=json.loads((ROOT / 'static' / 'references' / 'catalog.json').read_text())
-            return self.reply({'version':'4.1','characters':len(catalog),'images':sum(len(c['images']) for c in catalog),'entry':'static/index.html'})
+            return self.reply({'version':'4.2','characters':len(catalog),'images':sum(len(c['images']) for c in catalog),'entry':'static/index.html'})
         if path=='/api/state': return self.reply(read_state())
         if path.startswith('/media/'):
             name=path.removeprefix('/media/')
