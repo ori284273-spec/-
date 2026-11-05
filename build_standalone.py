@@ -17,6 +17,12 @@ def build(destination, package=None):
     target = Path(destination)
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(html, encoding='utf-8')
+    # Keep the fixed-address Pages entry synchronized with every build. GitHub
+    # Pages can serve main:/docs without additional runtime or API credentials.
+    pages = ROOT / 'docs' / 'index.html'
+    pages.parent.mkdir(parents=True, exist_ok=True)
+    if target.resolve() != pages.resolve():
+        pages.write_text(html, encoding='utf-8')
     if package:
         with zipfile.ZipFile(package, 'w', zipfile.ZIP_DEFLATED) as archive:
             archive.write(target, DELIVERY_NAME)
